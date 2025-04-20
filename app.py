@@ -29,7 +29,7 @@ def parsing(uploaded_file):
             tmp_file_path = tmp_file.name  # Get the path of the saved file
 
         # Initialize the parser
-        parser = LlamaParse(api_key=LLAMA_API_KEY, result_type="markdown")
+        parser = LlamaParse(api_key=llamakey, result_type="markdown")
 
         # Parse the file using its path
         documents = parser.load_data(tmp_file_path)
@@ -49,7 +49,7 @@ def parsing(uploaded_file):
 
 
 def rag(content, question):
-    client = OpenAI()
+    client = OpenAI(api_key=openkey)
     completion = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
