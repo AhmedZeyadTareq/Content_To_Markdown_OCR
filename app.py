@@ -17,8 +17,36 @@ warnings.filterwarnings(
     category=DeprecationWarning
 )
 
-# Set Tesseract path (handled by Docker installation).
+import os
+import pytesseract
+import streamlit as st
+from PIL import Image
+
+# Streamlit Cloud-specific Tesseract configuration
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
+
+def streamlit_ocr(image):
+    """Optimized OCR function for Streamlit Cloud"""
+    try:
+        return pytesseract.image_to_string(image, lang='eng')
+    except Exception as e:
+        st.error(f"OCR Failed: {str(e)}")
+        st.info("This usually means Tesseract isn't properly installed in the container")
+        return ""
+
+# Streamlit UI
+st.title("OCR in Streamlit Cloud")
+upload = st.file_uploader("Upload image", type=["png","jpg","jpeg"])
+
+if upload:
+    img = Image.open(upload)
+    st.image(img, caption="Uploaded Image")
+    
+    if st.button("Extract Text"):
+        text = streamlit_ocr(img)
+        st.text_area("Extracted Text", text, height=200)
+
 
 # Initialize app
 st.set_page_config(page_title="🧠 AI File Chat", layout="centered")
