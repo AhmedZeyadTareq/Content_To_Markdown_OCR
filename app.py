@@ -4,7 +4,6 @@ import fitz  # PyMuPDF
 from PIL import Image
 import os
 from openai import OpenAI
-import tiktoken
 
 import streamlit as st
 import tempfile
@@ -153,10 +152,6 @@ def rag(con, qu):
         ]
     )
     return completion.choices[0].message.content
-
-def count_tokens(content, model="gpt-4-turbo"):  # Use your model name
-    enc = tiktoken.encoding_for_model(model)
-    print(f"The Size of the Content_Tokens: {len(enc.encode(content))}")
 
 
 if uploaded_file:
