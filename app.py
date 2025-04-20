@@ -64,18 +64,37 @@ def convert_file(path: str) -> str:
         print("❌ Failed - OCR Activated >>> ")
 
     ext = os.path.splitext(path)[1].lower()
+    pages = []
+
     if ext == ".pdf":
-        pages = convert_from_path(path)
+        try:
+            pages = convert_from_path(path)
+        except Exception as e:
+            print(f"❌ Failed to process PDF: {e}")
+            return "❌ Failed to process PDF file."
     elif ext in [".jpg", ".jpeg", ".png"]:
         try:
             img = Image.open(path)
             pages = [img]
-        except (UnidentifiedImageError, OSError):
-            print("❌ The uploaded file is not a valid image.")
-            return "The uploaded file is not a valid image. Please upload a valid image file."
+        except Exception as e:
+            print(f"❌ Invalid image: {e}")
+            return "❌ Invalid image file."
     else:
         print("❌ Unsupported file format.")
-        return "Unsupported file format."
+        return "❌ Unsupported file format."
+
+    # إذا وصلنا هنا معناها الصورة أو PDF تم فتحها بنجاح
+    full_text = ""
+    for img in pages:
+        text = pytesseract.image_to_string(img, lang='eng')
+        full_text += "\n" + text
+
+    if full_text.strip():
+        print("✅ OCR Done Successfully.")
+        return full_text
+    else:
+        print("⚠️ OCR finished but no readable text found.")
+        return "⚠️ OCR finished but no readable text found."
 
 
 def reorganize_markdown(raw: str) -> str:
