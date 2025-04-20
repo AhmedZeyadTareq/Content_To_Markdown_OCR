@@ -136,7 +136,7 @@ def rag(content, question):
 
 # UI implementation
 if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
         tmp_file.write(uploaded_file.read())
         file_path = tmp_file.name
 
