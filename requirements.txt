@@ -2,5 +2,5 @@ streamlit
 markitdown
 pdf2image
 pytesseract
-PIL
+Pillow 
 openai
