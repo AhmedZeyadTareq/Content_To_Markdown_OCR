@@ -66,13 +66,17 @@ def convert_file(path: str) -> str:
     ext = os.path.splitext(path)[1].lower()
     if ext == ".pdf":
         pages = convert_from_path(path)
+    elif ext in [".jpg", ".jpeg", ".png"]:
+        try:
+            img = Image.open(path)
+            pages = [img]
+        except (UnidentifiedImageError, OSError):
+            print("❌ The uploaded file is not a valid image.")
+            return "The uploaded file is not a valid image. Please upload a valid image file."
     else:
-        pages = [Image.open(path)]
-    full_text = ""
-    for img in pages:
-        text = pytesseract.image_to_string(img, lang='eng')
-        full_text += "\n" + text
-    return full_text
+        print("❌ Unsupported file format.")
+        return "Unsupported file format."
+
 
 def reorganize_markdown(raw: str) -> str:
     client = OpenAI(api_key=api_key)
