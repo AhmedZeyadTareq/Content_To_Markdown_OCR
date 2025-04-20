@@ -1,194 +1,127 @@
-# Configuration (add at top after imports)
-warnings.filterwarnings(
-    "ignore",
-    message="builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute",
-    category=DeprecationWarning
-)
 
-# Streamlit Cloud-specific Tesseract configuration
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
-os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
-
-import os
-import tempfile
-import warnings
-from typing import List, Optional
-
-import fitz  # PyMuPDF
-import pytesseract
-import streamlit as st
-from markitdown import MarkItDown
 from openai import OpenAI
+from llama_parse import LlamaParse
+import os
+import streamlit as st
+import tempfile
 from PIL import Image
 
 
-def streamlit_ocr(image):
-    """Optimized OCR function for Streamlit Cloud"""
-    try:
-        return pytesseract.image_to_string(image, lang='eng')
-    except Exception as e:
-        st.error(f"OCR Failed: {str(e)}")
-        st.info("This usually means Tesseract isn't properly installed in the container")
-        return ""
+LLM_MODEL = "gpt-4.1-mini"
 
-# Streamlit UI
-st.title("OCR in Streamlit Cloud")
-upload = st.file_uploader("Upload image", type=["png","jpg","jpeg"])
-
-if upload:
-    img = Image.open(upload)
-    st.image(img, caption="Uploaded Image")
-    
-    if st.button("Extract Text"):
-        text = streamlit_ocr(img)
-        st.text_area("Extracted Text", text, height=200)
+openkey = st.secrets["OPENAI_API_KEY"]
+llamakey = st.secrets["LLAMA_API_KEY"]
 
 
-# Initialize app
 st.set_page_config(page_title="🧠 AI File Chat", layout="centered")
 st.title("🧠 Content Extraction")
 
-# Initialize OpenAI client
-if "OPENAI_API_KEY" not in st.secrets:
-    st.error("OpenAI API key not found in secrets!")
-    st.stop()
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-LLM_MODEL = "gpt-4.1-mini"
+uploaded_file = st.file_uploader("📂 Choose File:", type=["pdf", "txt", "jpg", "png"])
 
-# --- Core Functions (kept same as original) ---
-def pdf_to_images(file_obj, dpi: int = 300) -> List[Image.Image]:
-    """Convert PDF to list of PIL Images"""
+
+def parsing(uploaded_file):
     try:
-        if isinstance(file_obj, str):
-            doc = fitz.open(file_obj)
-        else:
-            doc = fitz.open(stream=file_obj.read(), filetype="pdf")
-        
-        pages = []
-        for page in doc:
-            pix = page.get_pixmap(dpi=dpi, colorspace="rgb")
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            pages.append(img)
-        return pages
+        # Save the uploaded file to a temporary file
+        suffix = os.path.splitext(uploaded_file.name)[1]  # Get file extension (.pdf, .txt, etc.)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_file_path = tmp_file.name  # Get the path of the saved file
+
+        # Initialize the parser
+        parser = LlamaParse(api_key=LLAMA_API_KEY, result_type="markdown")
+
+        # Parse the file using its path
+        documents = parser.load_data(tmp_file_path)
+
+        # Clean up: Delete the temporary file after parsing
+        os.unlink(tmp_file_path)  # Remove the temp file
+
+        if not documents:
+            st.error("Failed to parse the document - no content returned")
+            return ""
+
+        return documents[0].text
+
     except Exception as e:
-        st.error(f"PDF processing error: {str(e)}")
-        return []
-    finally:
-        if 'doc' in locals():
-            doc.close()
+        st.error(f"Error parsing document: {str(e)}")
+        return ""
 
-def convert_file(path: str) -> Optional[str]:
-    """Convert file to text using MarkItDown or OCR fallback"""
-    ext = os.path.splitext(path)[1].lower()
-    
-    # Try MarkItDown first
-    try:
-        with st.spinner("Extracting structured text..."):
-            md = MarkItDown(enable_plugins=False)
-            result = md.convert(path)
-            if result.text_content.strip():
-                return result.text_content
-    except Exception:
-        pass  # Silent fallback to OCR
-    
-    # Fallback to OCR
-    with st.spinner("Running OCR..."):
-        try:
-            if ext == '.pdf':
-                pages = pdf_to_images(path)
-            elif ext in ['.jpg', '.jpeg', '.png']:
-                pages = [Image.open(path)]
-            else:
-                st.error(f"Unsupported file format: {ext}")
-                return None
-            
-            return "\n".join(pytesseract.image_to_string(img, lang='eng') for img in pages)
-        except Exception as e:
-            st.error(f"OCR failed: {str(e)}")
-            return None
 
-def reorganize_markdown(raw: str) -> Optional[str]:
-    """Reorganize content using OpenAI"""
-    with st.spinner("Improving structure..."):
-        try:
-            completion = client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[
-                    {"role": "user", "content": f"reorganize:\n{raw}"},
-                    {"role": "system", "content": "Reorganize this content in Markdown without adding or removing content."}
-                ]
-            )
-            return completion.choices[0].message.content
-        except Exception as e:
-            st.error(f"Reorganization failed: {str(e)}")
-            return None
-
-def rag(content: str, question: str) -> Optional[str]:
-    """Answer questions using RAG"""
-    with st.spinner("Generating answer..."):
-        try:
-            completion = client.chat.completions.create(
-                model=LLM_MODEL,
-                messages=[
-                    {"role": "user", "content": question},
-                    {"role": "system", "content": f"Answer from this content:\n{content}"}
-                ]
-            )
-            return completion.choices[0].message.content
-        except Exception as e:
-            st.error(f"Query failed: {str(e)}")
-            return None
-
-# --- UI Components ---
-def sidebar():
-    with st.sidebar:
-        st.image("formal_image.jpg", width=150) if os.path.exists("formal_image.jpg") else None
-        st.write("### Implemented By:")
-        st.write("**Eng.Ahmed Zeyad Tareq**")
-        st.write("📌 Data Scientist | 🎓 Master of AI Engineering")
-        st.write("[📷 Instagram](https://www.instagram.com/adlm7) | "
-                "[🔗 LinkedIn](https://www.linkedin.com/in/ahmed-zeyad-tareq) | "
-                "[🐙 GitHub](https://github.com/AhmedZeyadTareq)")
-
-def main():
-    sidebar()
-    
-    uploaded_file = st.file_uploader(
-        "📂 Choose File:", 
-        type=["pdf", "txt", "jpg", "png", "jpeg"],
-        help="Supported formats: PDF, TXT, JPG, PNG"
+def rag(content, question):
+    client = OpenAI()
+    completion = client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Give me Direct Answer: {question}"
+            },
+            {
+                "role": "system",
+                "content": f"you are an assistant answer directly and concise from the following content:\n {content}"
+            }
+        ]
     )
-    
-    if uploaded_file:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
-            tmp_file.write(uploaded_file.read())
-            file_path = tmp_file.name
-            
-            if st.button("Start Processing 🔁"):
-                if raw_text := convert_file(file_path):
-                    st.text_area("📄 Extracted Content:", raw_text, height=200)
-                    st.session_state.raw_text = raw_text
-            
-            if "raw_text" in st.session_state:
-                if st.button("🧹 Reorganize Content"):
-                    if organized := reorganize_markdown(st.session_state.raw_text):
-                        st.session_state.organized_text = organized
-                        st.markdown(organized)
-                
-                if "organized_text" in st.session_state:
-                    st.download_button(
-                        "⬇️ Download Organized File",
-                        data=st.session_state.organized_text,
-                        file_name="organized.md",
-                        mime="text/markdown"
-                    )
-                    
-                    st.divider()
-                    question = st.text_input("Ask about the content ❓")
-                    if question and st.button("💬 Get Answer"):
-                        if answer := rag(st.session_state.organized_text, question):
-                            st.markdown(f"**Answer:** {answer}")
+    return completion.choices[0].message.content
 
-if __name__ == "__main__":
-    main()
+
+
+
+
+# side bar
+logo_link = "formal image.jpg"
+# Sidebar with logo and description
+with st.sidebar:
+    if os.path.exists(logo_link):
+        logo_image = Image.open(logo_link)
+        st.image(logo_image, width=150)  # Adjust width as needed
+    else:
+        st.warning("Logo not found. Please check the logo path.")
+
+    st.write("### Implemented By:")
+    st.write("**Eng.Ahmed Zeyad Tareq**")
+    st.write("📌 Data Scientist.")
+    st.write("🎓 Master of AI Engineering.")
+    st.write("📷 Instagram: [@adlm7](https://www.instagram.com/adlm7)")
+    st.write("🔗 LinkedIn: [Ahmed Zeyad Tareq](https://www.linkedin.com/in/ahmed-zeyad-tareq)")
+    st.write("🔗 Github: [Ahmed Zeyad Tareq](https://github.com/AhmedZeyadTareq)")
+    st.write("🔗 Kaggle: [Ahmed Zeyad Tareq](https://www.kaggle.com/ahmedzeyadtareq)")
+#
+#
+
+if uploaded_file:
+    # grab the real extension (".pdf", ".jpg", etc.)
+    suffix = os.path.splitext(uploaded_file.name)[1]
+    with (tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file):
+        tmp_file.write(uploaded_file.read())
+        file_path = tmp_file.name
+
+        if st.button("Start 🔁"):
+            raw_text = parsing(uploaded_file)
+            st.text_area("📄 Content:", raw_text, height=200)
+            st.session_state["raw_text"] = raw_text
+            # Add a download button for the reorganized text
+            st.download_button(
+                label="⬇️ Download as TXT",
+                data=raw_text,
+                file_name="reorganized_content.txt",
+                mime="text/plain",
+                key="download_txt")  # Unique key to avoid conflicts
+
+        if "raw_text" in st.session_state:
+            if st.button("Show.."):
+                st.text_area("📄 Content:", st.session_state["raw_text"], height=200)
+
+        if "raw_text" in st.session_state:
+            question = st.text_input(" Ask Anything about Content..❓")
+            if st.button("💬 Send"):
+                answer = rag(st.session_state["raw_text"], question)
+                st.markdown(f"**Question❓:**\n{question}")
+                st.markdown(f"**Answer💡:**\n{answer}")
+
+
+
+
+
+#PERFECTO
