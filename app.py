@@ -1,3 +1,14 @@
+# Configuration (add at top after imports)
+warnings.filterwarnings(
+    "ignore",
+    message="builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute",
+    category=DeprecationWarning
+)
+
+# Streamlit Cloud-specific Tesseract configuration
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
+
 import os
 import tempfile
 import warnings
@@ -10,21 +21,6 @@ from markitdown import MarkItDown
 from openai import OpenAI
 from PIL import Image
 
-# Configuration
-warnings.filterwarnings(
-    "ignore",
-    message="builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute",
-    category=DeprecationWarning
-)
-
-import os
-import pytesseract
-import streamlit as st
-from PIL import Image
-
-# Streamlit Cloud-specific Tesseract configuration
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
-os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
 
 def streamlit_ocr(image):
     """Optimized OCR function for Streamlit Cloud"""
