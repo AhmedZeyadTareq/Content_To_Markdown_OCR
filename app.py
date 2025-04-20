@@ -17,7 +17,7 @@ warnings.filterwarnings(
     category=DeprecationWarning
 )
 
-# Set Tesseract path (handled by Docker installation)
+# Set Tesseract path (handled by Docker installation).
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 # Initialize app
