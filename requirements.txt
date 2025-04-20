@@ -4,4 +4,3 @@ Pillow
 openai
 llama-parse
 llama-cloud
-tempfile
