@@ -1,0 +1,7 @@
+streamlit
+tempfile
+markitdown
+pdf2image
+pytesseract
+PIL
+openai
