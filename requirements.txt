@@ -1,7 +1,6 @@
 streamlit
 markitdown
-pdf2image
+PyMuPDF
 pytesseract
 Pillow 
 openai
-PyMuPDF
