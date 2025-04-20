@@ -1,22 +1,32 @@
-import streamlit as st
-import os
-import tempfile
-import io
-import sys
 from markitdown import MarkItDown
-#from pdf2image import convert_from_path
-import fitz
 import pytesseract
+import fitz  # PyMuPDF
 from PIL import Image
+import os
 from openai import OpenAI
+import tiktoken
 
-# إعدادات عامة
+import streamlit as st
+import tempfile
+
+
+# Confige
 api_key = st.secrets["OPENAI_API_KEY"]
-LLM_MODEL = "gpt-4.1"
+LLM_MODEL = "gpt-4.1-mini"
+
+
+import warnings
+warnings.filterwarnings("ignore",
+    message="builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__ attribute",
+    category=DeprecationWarning)
+
+
+
 st.set_page_config(page_title="🧠 AI File Chat", layout="centered")
 st.title("🧠 Content Extraction")
 
-# الشريط الجانبي
+
+# side bar
 logo_link = "formal image.jpg"
 # Sidebar with logo and description
 with st.sidebar:
@@ -32,135 +42,147 @@ with st.sidebar:
     st.write("🎓 Master of AI Engineering.")
     st.write("📷 Instagram: [@adlm7](https://www.instagram.com/adlm7)")
     st.write("🔗 LinkedIn: [Ahmed Zeyad Tareq](https://www.linkedin.com/in/ahmed-zeyad-tareq)")
+    st.write("🔗 Github: [Ahmed Zeyad Tareq](https://github.com/AhmedZeyadTareq)")
+    st.write("🔗 Kaggle: [Ahmed Zeyad Tareq](https://www.kaggle.com/ahmedzeyadtareq)")
+#
+#
+uploaded_file = st.file_uploader("📂 Choose File:", type=["pdf", "txt", "jpg", "png"])
 
-# page = st.sidebar.radio("Choose Task:", ["Derive", "RAG"])
 
-# uploader
-uploaded_file = st.file_uploader("📤 Choose File:", type=["pdf", "txt", "jpg", "png"])
+def pdf_to_images(file_obj, dpi: int = 300) -> list[Image.Image]:
+    """Handle both file paths and file objects"""
+    if isinstance(file_obj, str):
+        # Regular file path
+        doc = fitz.open(file_obj)
+    else:
+        # File-like object (Streamlit case)
+        doc = fitz.open(stream=file_obj.read(), filetype="pdf")
 
-# system function
-def capture_print_output(func, *args, **kwargs):
-    buffer = io.StringIO()
-    sys.stdout = buffer
-    try:
-        result = func(*args, **kwargs)
-        output = buffer.getvalue()
-    finally:
-        sys.stdout = sys.__stdout__
-    return result, output
-
-import pytesseract
-from PIL import Image
-import fitz  # PyMuPDF
-import os
-from markitdown import MarkItDown
-
-def extract_images_from_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    images = []
+    pages = []
     for page in doc:
-        pix = page.get_pixmap(dpi=300)
+        pix = page.get_pixmap(dpi=dpi, colorspace="rgb")
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        images.append(img)
-    return images
+        pages.append(img)
+    doc.close()
+    return pages
 
+
+# ---- File → Text (MarkItDown → OCR) ----
 def convert_file(path: str) -> str:
+    ext = os.path.splitext(path)[1].lower()
     try:
-        print("🧪 Extraction Processing...")
+        print("[🔍] Trying structured text extraction via MarkItDown.....")
         md = MarkItDown(enable_plugins=False)
         result = md.convert(path)
         if result.text_content.strip():
-            with open('converted.md', 'w', encoding='utf-8') as f:
+            print(f"[✔]=== Markdown Derived ===\n Now Model Reorganizing.....")
+            with open('data.md', 'a', encoding='utf-8') as f:
                 f.write(result.text_content)
-            print("✅ Done.. Content Extracted")
+                print("===Reorganized Saved, DONE===\n")
             return result.text_content
         else:
-            print("⚠️ NO Content, OCR Activated >>>")
-    except:
-        print("❌ Failed - OCR Activated >>> ")
+            print("[⚠️] No text found via MarkItDown, falling back to OCR...")
+    except Exception:
+        print(f"[❌] MarkItDown failed")
+        print("[🔁] Falling back to OCR...")
 
-    ext = os.path.splitext(path)[1].lower()
-
+    # Fallback OCR
+    print("[🔍]===OCR Started.......")
     try:
-        if ext == ".pdf":
-            pages = extract_images_from_pdf(path)
-        elif ext in [".jpg", ".jpeg", ".png"]:
-            img = Image.open(path)
-            pages = [img]
-        else:
-            print("❌ Unsupported file format.")
-            return "Unsupported file format."
-    except Exception as e:
-        print(f"❌ Error reading file: {e}")
-        return "Error reading the file."
+        _ = fitz.open(path)
+        is_pdf = True
+    except Exception:
+        is_pdf = False
 
-    text = ""
-    for img in pages:
-        text += pytesseract.image_to_string(img)
-
-    if text.strip():
-        with open('converted.md', 'w', encoding='utf-8') as f:
-            f.write(text)
-        print("✅ Done.. OCR Extracted")
+    if is_pdf:
+        pages = pdf_to_images(path, dpi=300)
+    elif ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']:
+        pages = [Image.open(path)]
     else:
-        print("⚠️ OCR Failed or No text found.")
+        raise Exception(f"Unsupported file format: {ext or 'unknown'}")
 
-    return text
+    # 3b) run Tesseract on each image page
+    full_text = ""
+    for img in pages:
+        page_text = pytesseract.image_to_string(img, lang='eng')
+        full_text += "\n" + page_text
+
+    return full_text
 
 
-
+# ---- Markdown Reorganization via OpenAI ----
 def reorganize_markdown(raw: str) -> str:
-    client = OpenAI(api_key=api_key)
-    chat = client.chat.completions.create(
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
-            {"role": "user", "content": f"reorganize the following content:\n{raw}"},
-            {"role": "system", "content": "Respond with improved markdown only. DO NO start response with (```markdown). start with the content directly"}
+            {
+                "role": "user",
+                "content": f"reorganize the following content:\n {raw}"
+            },
+            {
+                "role": "system",
+                "content": f"You are a reorganizer. Return the content in Markdown, keeping it identical. Do not delete\
+                 or replace anything—only reorganize it for better structure. Respond with only the reorganized content,\
+                  without any additional words or symbols (''')."
+            }
         ]
     )
-    content = chat.choices[0].message.content
-    with open("organized.md", "w", encoding="utf-8") as f:
-        f.write(content)
-    return content
+    with open('data.md', 'a', encoding='utf-8') as f:
+        f.write(completion.choices[0].message.content)
+        print("===Reorganized Saved, DONE===\n")
+    return completion.choices[0].message.content
 
-def rag(content, question):
-    client = OpenAI(api_key=api_key)
-    chat = client.chat.completions.create(
+
+# ---- Build RAG QA Chain ----
+def rag(con, qu):
+    client = OpenAI()
+
+    completion = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
-            {"role": "user", "content": question},
-            {"role": "system", "content": f"Answer directly, very specific and concise from the following content:\n{content}"}
+            {
+                "role": "user",
+                "content": qu
+            },
+            {
+                "role": "system",
+                "content": f"you are an assistant answer directly and concise from the following content:\n {con}"
+            }
         ]
     )
-    return chat.choices[0].message.content
+    return completion.choices[0].message.content
 
-# UI implementation
+def count_tokens(content, model="gpt-4-turbo"):  # Use your model name
+    enc = tiktoken.encoding_for_model(model)
+    print(f"The Size of the Content_Tokens: {len(enc.encode(content))}")
+
+
 if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
+    # grab the real extension (".pdf", ".jpg", etc.)
+    suffix = os.path.splitext(uploaded_file.name)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
         tmp_file.write(uploaded_file.read())
         file_path = tmp_file.name
 
-    if st.button("Start 🔁"):
-        result_text, logs = capture_print_output(convert_file, file_path)
-        st.text_area("📄 Content:", result_text, height=200)
+        if st.button("Start 🔁"):
+            raw_text = convert_file(file_path)
+            st.text_area("📄 Content:", raw_text, height=200)
+            st.session_state["raw_text"] = raw_text
 
-        st.session_state["result_text"] = result_text
+        if "raw_text" in st.session_state:
+            if st.button("🧹 Reorganize to Content"):
+                organized = reorganize_markdown(st.session_state["raw_text"])
+                st.session_state["organized_text"] = organized
+                st.markdown(organized)
+            if "organized_text" in st.session_state:
+                with open("organized.md", "rb") as f:
+                    st.download_button("⬇️ Download File", f, file_name="organized.md")
 
-    if "result_text" in st.session_state:
-        if st.button("🧹 Reorganize to Content"):
-            organized = reorganize_markdown(st.session_state["result_text"])
-            st.session_state["organized_text"] = organized
-            # st.markdown("📘 **Content Reorganized:**", unsafe_allow_html=True)
-            # st.markdown(organized, unsafe_allow_html=True)
-            st.write("📄 Reorganized Content:\n", organized)
-        if "organized_text" in st.session_state:
-            with open("organized.md", "rb") as f:
-                st.download_button("⬇️ Download File", f, file_name="organized.md")
+                question = st.text_input(" Ask Anything about Content..❓")
+                if st.button("💬 Send"):
+                    answer = rag(st.session_state["organized_text"], question)
+                    st.markdown(f"**Question❓:**\n{question}")
+                    st.markdown(f"**Answer💡:**\n{answer}")
 
-            question = st.text_input(" Ask Anything about Content..❓")
-            if st.button("💬 Send"):
-                answer = rag(st.session_state["organized_text"], question)
-                st.markdown(f"**Question❓:**\n{question}")
-                st.markdown(f"**Answer💡:**\n{answer}")
-
-# streamlit run ready_openai_simple_UI.py
