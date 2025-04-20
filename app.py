@@ -4,7 +4,8 @@ import tempfile
 import io
 import sys
 from markitdown import MarkItDown
-from pdf2image import convert_from_path
+#from pdf2image import convert_from_path
+import fitz
 import pytesseract
 from PIL import Image
 from openai import OpenAI
@@ -48,6 +49,21 @@ def capture_print_output(func, *args, **kwargs):
         sys.stdout = sys.__stdout__
     return result, output
 
+import pytesseract
+from PIL import Image
+import fitz  # PyMuPDF
+import os
+from markitdown import MarkItDown
+
+def extract_images_from_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    images = []
+    for page in doc:
+        pix = page.get_pixmap(dpi=300)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        images.append(img)
+    return images
+
 def convert_file(path: str) -> str:
     try:
         print("🧪 Extraction Processing...")
@@ -64,37 +80,33 @@ def convert_file(path: str) -> str:
         print("❌ Failed - OCR Activated >>> ")
 
     ext = os.path.splitext(path)[1].lower()
-    pages = []
 
-    if ext == ".pdf":
-        try:
-            pages = convert_from_path(path)
-        except Exception as e:
-            print(f"❌ Failed to process PDF: {e}")
-            return "❌ Failed to process PDF file."
-    elif ext in [".jpg", ".jpeg", ".png"]:
-        try:
+    try:
+        if ext == ".pdf":
+            pages = extract_images_from_pdf(path)
+        elif ext in [".jpg", ".jpeg", ".png"]:
             img = Image.open(path)
             pages = [img]
-        except Exception as e:
-            print(f"❌ Invalid image: {e}")
-            return "❌ Invalid image file."
-    else:
-        print("❌ Unsupported file format.")
-        return "❌ Unsupported file format."
+        else:
+            print("❌ Unsupported file format.")
+            return "Unsupported file format."
+    except Exception as e:
+        print(f"❌ Error reading file: {e}")
+        return "Error reading the file."
 
-    # إذا وصلنا هنا معناها الصورة أو PDF تم فتحها بنجاح
-    full_text = ""
+    text = ""
     for img in pages:
-        text = pytesseract.image_to_string(img, lang='eng')
-        full_text += "\n" + text
+        text += pytesseract.image_to_string(img)
 
-    if full_text.strip():
-        print("✅ OCR Done Successfully.")
-        return full_text
+    if text.strip():
+        with open('converted.md', 'w', encoding='utf-8') as f:
+            f.write(text)
+        print("✅ Done.. OCR Extracted")
     else:
-        print("⚠️ OCR finished but no readable text found.")
-        return "⚠️ OCR finished but no readable text found."
+        print("⚠️ OCR Failed or No text found.")
+
+    return text
+
 
 
 def reorganize_markdown(raw: str) -> str:
