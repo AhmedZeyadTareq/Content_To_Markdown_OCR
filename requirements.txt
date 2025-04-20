@@ -1,6 +1,7 @@
 streamlit
 markitdown
-PyMuPDF
-pytesseract
 Pillow 
 openai
+llama-parse
+llama-cloud
+tempfile
