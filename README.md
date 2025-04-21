@@ -57,16 +57,17 @@ Welcome to **Content Extraction**, a smart web application that lets you **uploa
 Eng. Ahmed Zeyad Tareq
 📌 Data Scientist | 🎓 Master of AI Engineering
 
-📷 Instagram
+📷 Instagram: @adlm7<br>
 
-🔗 LinkedIn
+🔗 LinkedIn: [AhmedZeyadTareq](https://www.linkedin.com/in/ahmed-zeyad-tareq)<br>
 
-💻 GitHub
+📊 Kaggle:  [AhmedZeyadTareq](https://www.kaggle.com/ahmedzeyadtareq)<br>
 
-📊 Kaggle
 
 📄 License
 MIT License © Ahmed Zeyad Tareq
 
 🌟 Support
 If you like this project, give it a ⭐ on GitHub and share 
+Got ideas for improvements? Feel free to open a Pull Request or create an Issue. 🚀
+
