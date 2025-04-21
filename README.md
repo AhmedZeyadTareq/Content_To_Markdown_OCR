@@ -52,3 +52,21 @@ Welcome to **Content Extraction**, a smart web application that lets you **uploa
    ```bash
    git clone https://github.com/AhmedZeyadTareq/content-extraction-chat
    cd content-extraction-chat
+
+👨‍💻 Developed By
+Eng. Ahmed Zeyad Tareq
+📌 Data Scientist | 🎓 Master of AI Engineering
+
+📷 Instagram
+
+🔗 LinkedIn
+
+💻 GitHub
+
+📊 Kaggle
+
+📄 License
+MIT License © Ahmed Zeyad Tareq
+
+🌟 Support
+If you like this project, give it a ⭐ on GitHub and share 
