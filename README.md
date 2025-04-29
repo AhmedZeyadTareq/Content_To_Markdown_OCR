@@ -50,8 +50,8 @@ Welcome to **Content Extraction**, a smart web application that lets you **uploa
 
 1. Clone the repo:
    ```bash
-   git clone https://github.com/AhmedZeyadTareq/content-extraction-chat
-   cd content-extraction-chat
+   https://github.com/AhmedZeyadTareq/Content_To_Markdown_OCR.git
+   cd Content_To_Markdown_OCR
 
 👨‍💻 Developed By
 Eng. Ahmed Zeyad Tareq
