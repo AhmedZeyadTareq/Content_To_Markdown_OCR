@@ -61,10 +61,10 @@ Welcome to **Content Extraction**, a smart web application that lets you **uploa
 - [GitHub](https://github.com/AhmedZeyadTareq) | [LinkedIn](https://www.linkedin.com/in/ahmed-zeyad-tareq) | [Kaggle](https://www.kaggle.com/ahmedzeyadtareq)
 
 
-📄 License
+## 📄 License
 MIT License © Ahmed Zeyad Tareq
 
-🌟 Support
+## 🌟 Support
 If you like this project, give it a ⭐ on GitHub and share 
 Got ideas for improvements? Feel free to open a Pull Request or create an Issue. 🚀
 
