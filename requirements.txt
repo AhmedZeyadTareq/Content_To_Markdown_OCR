@@ -1,6 +1,7 @@
 streamlit
-markitdown
 Pillow 
 openai
 llama-parse
 llama-cloud
+markitdown[all]
+tiktoken
