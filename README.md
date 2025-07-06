@@ -1,6 +1,6 @@
 # 💡 Smart Content Extraction
 
-A powerful Streamlit application that intelligently extracts and processes content from various file formats using advanced AI techniques. This tool combines structured text extraction with OCR capabilities and provides intelligent content reorganization and question-answering features.
+A powerful Streamlit application that intelligently extracts and processes content from various file formats using advanced AI techniques. This tool combines structured text extraction with OCR capabilities and provides intelligent content reorganization and question-answering features. [Try it live](https://contenttomarkdownocr-ahmedtareq.streamlit.app/)
 
 ## 🎯 Overview
 
@@ -43,8 +43,8 @@ Smart Content Extraction is designed to handle diverse file formats and extract 
 
 3. **Set up .env file with API keys:**
    ```bash
-   OPENAI_API_KEY="your-openai-api-key"
-   LLAMA_API_PARSE="your-llamaparse-api-key"
+   OPENAI_API_KEY=your-openai-api-key
+   LLAMA_API_PARSE=your-llamaparse-api-key
    ```
 
 4. **Run the application:**
@@ -61,6 +61,7 @@ llama-parse
 markitdown
 pillow
 tiktoken
+python-dotenv
 ```
 
 ## 🚀 Usage
@@ -71,9 +72,9 @@ tiktoken
 3. Open your browser to `http://localhost:8501`
 
 ### Method 2: Deployed Version
-Access the live application at: [Your Streamlit Deployment URL]
+Access the live application at: [Try it live](https://contenttomarkdownocr-ahmedtareq.streamlit.app/)
 
-### Method 3: import the function in another code (Optional)
+### Method 3: Import Functions in Your Code (Optional)
 ```bash
 from app import convert_file, reorganize_markdown, rag
 
