@@ -5,3 +5,4 @@ llama-parse
 llama-cloud
 markitdown[all]
 tiktoken
+python-dotenv
